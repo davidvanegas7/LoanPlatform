@@ -18,6 +18,8 @@ load_dotenv()
 # Import routes
 from routes.auth import auth_bp
 from routes.loan_applications import loan_app_bp
+from routes.loans import loan_bp
+from routes.payments import payment_bp
 
 app = Flask(__name__)
 
@@ -35,6 +37,50 @@ app.config["JWT_HEADER_TYPE"] = "Bearer"
 # Additional configurations for debugging
 app.config["JWT_ERROR_MESSAGE_KEY"] = "error"
 app.config["JWT_DECODE_LEEWAY"] = 10  # Give 10 seconds margin for token expiration
+
+# Swagger configuration
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": "apispec",
+            "route": "/apispec.json",
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/docs/"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Loan Platform API",
+        "description": "API for loan application, approval, and management",
+        "contact": {
+            "responsibleOrganization": "Loan Platform",
+            "email": "david.vanegas.92@gmail.com"
+        },
+        "version": "1.0"
+    },
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+        }
+    },
+    "security": [
+        {
+            "Bearer": []
+        }
+    ]
+}
+
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
 
 logger.info(f"JWT Configuration: JWT_SECRET_KEY={app.config['JWT_SECRET_KEY'][:3]}..., JWT_ACCESS_TOKEN_EXPIRES={app.config['JWT_ACCESS_TOKEN_EXPIRES']}")
 
@@ -110,6 +156,7 @@ def before_request():
     excluded_routes = [
         '/',  # Main route
         '/docs/',  # Swagger documentation
+        '/docs',  # Swagger documentation alternate
         '/apispec.json',  # Swagger specification
         '/flasgger_static',  # Swagger static files
         '/static'  # Additional static files
@@ -138,7 +185,9 @@ def before_request():
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
-app.register_blueprint(loan_app_bp, url_prefix='/api/loan-applications')
+app.register_blueprint(loan_app_bp, url_prefix='/api/v1/loan-applications')
+app.register_blueprint(loan_bp, url_prefix='/api/v1/loans')
+app.register_blueprint(payment_bp, url_prefix='/api/v1/payments')
 
 @app.route('/')
 def hello():
@@ -153,7 +202,7 @@ def hello():
             message:
               type: string
               description: Welcome message
-              example: Welcome to the Loan Platform API! Do you want to see the docs? /docs
+              example: Welcome to the Loan Platform API! Do you want to see the docs? /docs/
             auth_info:
               type: string
               description: Authentication information
@@ -164,7 +213,7 @@ def hello():
               example: "To authenticate, add the following header to your requests: Authorization: Bearer your_jwt_token"
     """
     return jsonify({
-        "message": "Welcome to the Loan Platform API! Do you want to see the docs? /docs",
+        "message": "Welcome to the Loan Platform API! Do you want to see the docs? /docs/",
         "auth_info": "This API requires JWT authentication. Get your token by using the /api/v1/auth/login endpoint.",
         "auth_example": "To authenticate, add the following header to your requests: Authorization: Bearer your_jwt_token"
     })
