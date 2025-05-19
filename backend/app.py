@@ -30,20 +30,11 @@ CORS(app,
      resources={r"/*": {
          "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://loantrackerapp.davidvanegasdev.com"],
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin"],
+         "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
          "expose_headers": ["Content-Type", "Authorization"],
          "supports_credentials": True,
          "max_age": 86400
      }})
-
-# Configuración adicional de CORS para manejar OPTIONS
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://loantrackerapi.davidvanegasdev.com')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
 
 # JSON configuration to use UTF-8
 app.config['JSON_AS_ASCII'] = False
