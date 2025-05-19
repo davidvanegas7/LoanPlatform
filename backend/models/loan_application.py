@@ -3,6 +3,7 @@ import logging
 import json
 from datetime import datetime
 import random
+from decimal import Decimal
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -110,6 +111,13 @@ class LoanApplication:
                         # If it's neither bytes, str, nor dict, it might be an issue or already parsed.
                         # For now, we only explicitly handle bytes and str.
             
+                # Convert Decimal fields to string for JSON serialization
+                decimal_fields = ['loan_amount', 'loan_total_amount', 'loan_monthly_payment', 'loan_interest_rate']
+                for field in decimal_fields:
+                    if field in application and application[field] is not None:
+                        if isinstance(application[field], Decimal):
+                            application[field] = str(application[field])
+            
             return application
         except Exception as e:
             logger.error(f"Error getting application {application_id}: {str(e)}")
@@ -216,7 +224,7 @@ class LoanApplication:
             
             application = self.get_application_by_id(application_id)
 
-            if application.get('loan_amount') < 50000:
+            if int(application.get('loan_amount')) < 50000:
                 status = 'approved'
                 loan_interest_rate = random.randint(5, 20) / 100 # 5% to 20%
                 # Calculando pago total con interés compuesto mensual
@@ -241,7 +249,7 @@ class LoanApplication:
                 
                 self.db.execute_query(query, (status, current_time, loan_total_amount, loan_interest_rate, loan_monthly_payment, application_id))
 
-            elif application.get('loan_amount') == 50000:
+            elif int(application.get('loan_amount')) == 50000:
                 status = 'undecided'
             else:
                 status = 'declined'
