@@ -672,7 +672,7 @@ def update_batch_file_name(batch_id, file_name):
         return False
 
 @celery_app.task
-def process_ach_return_file(): # Removido file_path, ahora se descarga.
+def process_ach_return_file():
     """
     Descarga un archivo de retorno ACH de SFTP del día anterior, lo parsea,
     y actualiza el estado de las transacciones fallidas.
