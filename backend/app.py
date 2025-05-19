@@ -28,7 +28,7 @@ celery_app.conf.update(app.config)
 # CORS configuration with more specific settings
 CORS(app, 
      resources={r"/*": {
-         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://loantrackerapi.davidvanegasdev.com"],
+         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://loantrackerapp.davidvanegasdev.com"],
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin"],
          "expose_headers": ["Content-Type", "Authorization"],
@@ -39,7 +39,7 @@ CORS(app,
 # Configuración adicional de CORS para manejar OPTIONS
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://loantrackerapp.davidvanegasdev.com')
+    response.headers.add('Access-Control-Allow-Origin', 'https://loantrackerapi.davidvanegasdev.com')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
