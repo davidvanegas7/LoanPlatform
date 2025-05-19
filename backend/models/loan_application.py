@@ -88,11 +88,27 @@ class LoanApplication:
                 # Parse JSON fields
                 for json_field in ['business_info', 'financial_info']:
                     if application.get(json_field):
-                        if isinstance(application[json_field], str):
+                        field_value = application[json_field]
+                        
+                        # First, ensure it's a string by decoding if it's bytes
+                        if isinstance(field_value, bytes):
                             try:
-                                application[json_field] = json.loads(application[json_field])
+                                field_value = field_value.decode('utf-8')
+                            except UnicodeDecodeError:
+                                logger.error(f"Error decoding bytes field {json_field} for application {application_id}. Value: {field_value[:50]}...") # Log a snippet of the value
+                                application[json_field] = {"error": "unicode_decode_error"} # Or some other placeholder
+                                continue # Skip to next field or handle as an error
+
+                        # Now, if it's a string (either originally or after decoding), parse it as JSON
+                        if isinstance(field_value, str):
+                            try:
+                                application[json_field] = json.loads(field_value)
                             except json.JSONDecodeError:
+                                logger.warning(f"Could not decode JSON string for field {json_field} in application {application_id}. Value: {field_value[:100]}... Setting to empty dict.")
                                 application[json_field] = {}
+                        # If it's already a dict (e.g., if the DB driver handles JSON parsing), do nothing.
+                        # If it's neither bytes, str, nor dict, it might be an issue or already parsed.
+                        # For now, we only explicitly handle bytes and str.
             
             return application
         except Exception as e:
