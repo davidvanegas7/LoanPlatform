@@ -29,7 +29,7 @@ def get_payments():
         required: false
         type: string
         description: Status of the payments to filter by (optional)
-        enum: [scheduled, processing, completed, failed]
+        enum: [scheduled, processing, completed, failed, all]
       - name: limit
         in: query
         required: false
@@ -58,14 +58,13 @@ def get_payments():
         description: Server error
     """
     try:
-        status = 'scheduled'
         # Get user ID from JWT token
         user_id = get_jwt_identity()
         # Get loan to verify ownership
         loans = loan_model.get_loan_by_user_id(user_id)
         loan_ids = [loan['id'] for loan in loans]
 
-        payments = loan_model.get_payments_by_loan_ids(loan_ids, status)        
+        payments = loan_model.get_payments_by_loan_ids(loan_ids)        
         
         return jsonify({
             "payments": payments,
@@ -297,7 +296,6 @@ def update_payment_status(payment_id):
         }), 500
 
 @payment_bp.route('/create-ach-batch', methods=['POST'])
-@jwt_required()
 def create_ach_batch():
     """
     Create a new ACH payment batch for today's scheduled payments
@@ -362,7 +360,6 @@ def create_ach_batch():
         }), 500
 
 @payment_bp.route('/process-failed-payments', methods=['POST'])
-@jwt_required()
 def process_failed_payments():
     """
     Process a list of failed payments from ACH return file
@@ -429,7 +426,6 @@ def process_failed_payments():
         }), 500
 
 @payment_bp.route('/generate-ach-file', methods=['POST'])
-@jwt_required()
 def generate_ach_file():
     """
     Generate NACHA formatted ACH file for today's scheduled payments
@@ -508,7 +504,6 @@ def generate_ach_file():
         }), 500
 
 @payment_bp.route('/process-return-file', methods=['POST'])
-@jwt_required()
 def process_return_file():
     """
     Process an ACH return file containing failed transactions
@@ -521,10 +516,6 @@ def process_return_file():
         required: true
         schema:
           properties:
-            file_path:
-              type: string
-              description: Path to the ACH return file
-              example: "/path/to/return_file.txt"
             async_mode:
               type: boolean
               description: Whether to process the file asynchronously
@@ -542,18 +533,11 @@ def process_return_file():
     try:
         # Get request data
         data = request.get_json()
-        file_path = data.get('file_path')
         async_mode = data.get('async_mode', False)
-        
-        if not file_path:
-            return jsonify({
-                "error": "Datos inválidos",
-                "message": "Se requiere la ruta del archivo"
-            }), 400
         
         if async_mode:
             # Ejecutar la tarea de manera asíncrona
-            task = process_ach_return_file.delay(file_path)
+            task = process_ach_return_file.delay()
             return jsonify({
                 "message": "Procesamiento de archivo de retorno ACH iniciado",
                 "task_id": task.id,
@@ -561,7 +545,7 @@ def process_return_file():
             }), 202
         else:
             # Ejecutar la tarea de manera síncrona
-            result = process_ach_return_file(file_path)
+            result = process_ach_return_file()
             
             if 'error' in result:
                 return jsonify({

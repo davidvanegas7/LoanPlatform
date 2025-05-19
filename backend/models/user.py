@@ -20,7 +20,7 @@ class User:
             first_name VARCHAR(100),
             last_name VARCHAR(100),
             role ENUM('admin', 'user') DEFAULT 'user',
-            language VARCHAR(10) DEFAULT 'en',
+            language VARCHAR(10) DEFAULT 'es',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
