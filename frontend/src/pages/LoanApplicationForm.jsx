@@ -21,6 +21,7 @@ const LoanApplicationForm = () => {
   const [applicationId, setApplicationId] = useState(null);
   const [businessName, setBusinessName] = useState('');
   const [isApproved, setIsApproved] = useState(false);
+  const [isRejected, setIsRejected] = useState(false);
   const [offerDetails, setOfferDetails] = useState(null);
 
   // Esquemas de validación para cada paso
@@ -60,6 +61,9 @@ const LoanApplicationForm = () => {
       account_number: Yup.string()
         .required('El número de cuenta es obligatorio')
         .matches(/^[0-9]{4,17}$/, 'El número de cuenta debe tener entre 4 y 17 dígitos'),
+      routing_number: Yup.string()
+        .required('El número de ruta es obligatorio')
+        .matches(/^[0-9]{9}$/, 'El número de ruta debe tener 9 dígitos'),
     }),
     
     // Paso 4 - Detalles del préstamo
@@ -67,7 +71,7 @@ const LoanApplicationForm = () => {
       loan_amount: Yup.number()
         .required('El monto del préstamo es obligatorio')
         .positive('El monto debe ser positivo')
-        .max(50000, 'El monto máximo es $50,000'),
+        .max(100000, 'El monto máximo es $100,000'),
       loan_purpose: Yup.string()
         .required('El propósito del préstamo es obligatorio')
         .max(500, 'El propósito no puede exceder los 500 caracteres'),
@@ -75,7 +79,7 @@ const LoanApplicationForm = () => {
         .required('El plazo del préstamo es obligatorio')
         .positive('El plazo debe ser positivo')
         .integer('El plazo debe ser un número entero')
-        .oneOf([6, 12, 24, 36, 48, 60], 'El plazo debe ser 6, 12, 24, 36, 48 o 60 meses'),
+        .oneOf([1, 2, 3, 6, 9, 12, 18, 24], 'El plazo debe ser 1, 2, 3, 6, 9, 12, 18 o 24 meses'),
     }),
   };
 
@@ -96,7 +100,8 @@ const LoanApplicationForm = () => {
     monthly_profit: '',
     bank_name: '',
     account_number: '',
-    
+    routing_number: '',
+
     // Paso 4
     loan_amount: '',
     loan_term: '',
@@ -179,7 +184,8 @@ const LoanApplicationForm = () => {
             monthly_profit: parseFloat(values.monthly_profit),
             business_bank_account: {
               bank_name: values.bank_name,
-              account_number: values.account_number
+              account_number: values.account_number,
+              routing_number: values.routing_number
             }
           });
           
@@ -202,6 +208,10 @@ const LoanApplicationForm = () => {
           if (submitResponse.application.status === 'approved') {
             setIsApproved(true);
             setSuccess('¡Su solicitud ha sido aprobada! Revise los detalles y decida si desea aceptar la oferta.');
+          }
+          else if (submitResponse.application.status === 'declined') {
+            setIsRejected(true);
+            setSuccess('¡Su solicitud ha sido rechazada! Pero puede volver a intentarlo en cualquier momento.');
           } else {
             setSuccess('Solicitud enviada. Le notificaremos cuando tengamos una respuesta.');
           }
@@ -233,7 +243,7 @@ const LoanApplicationForm = () => {
       setSuccess('¡Préstamo financiado con éxito! Redirigiendo...');
       setTimeout(() => {
         navigate('/loans');
-      }, 4000);
+      }, 1000);
     } catch (err) {
       setError(err.response?.data?.message || 'Error al financiar el préstamo. Inténtelo de nuevo más tarde.');
     }
@@ -245,12 +255,7 @@ const LoanApplicationForm = () => {
       setError('');
       setSuccess('');
       
-      await LoanApplicationService.cancel(applicationId);
-      
-      setSuccess('Oferta rechazada con éxito. Redirigiendo...');
-      setTimeout(() => {
-        navigate('/loan-applications');
-      }, 4000);
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Error al rechazar la oferta. Inténtelo de nuevo más tarde.');
     }
@@ -481,6 +486,15 @@ const LoanApplicationForm = () => {
                       placeholder="1234567890"
                     />
                   </div>
+
+                  <div className="sm:col-span-3">
+                    <FormInput
+                      label="Número de ruta"
+                      name="routing_number"
+                      type="text"
+                      placeholder="123456789"
+                    />
+                  </div>
                 </div>
 
                 <div className="pt-5">
@@ -523,7 +537,7 @@ const LoanApplicationForm = () => {
                       name="loan_amount"
                       type="number"
                       placeholder="10000"
-                      helpText="Monto máximo: $50,000"
+                      helpText="Monto máximo: $100,000"
                     />
                   </div>
 
@@ -636,11 +650,32 @@ const LoanApplicationForm = () => {
               </div>
             </div>
           );
+        } else if (isRejected) {
+          return (
+            <div className="text-center py-12">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Solicitud rechazada</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Su solicitud ha sido rechazada. Pero puede volver a intentarlo en cualquier momento.
+              </p>
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/loan-applications')}
+                >
+                  Ver mis solicitudes
+                </Button>
+              </div>
+            </div>
+          );
         } else {
           return (
             <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">Solicitud enviada</h3>
               <p className="mt-1 text-sm text-gray-500">

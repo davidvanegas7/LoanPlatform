@@ -185,6 +185,9 @@ def before_request():
         '/api/v1/auth/login',  # Login endpoint
         '/api/v1/auth/register',  # Register endpoint
         '/flasgger_static/',  # Everything in flasgger_static
+        'api/v1/payments/generate-ach-file',
+        'api/v1/payments/process-return-file',
+        'api/v1/payments/create-ach-batch',
     ]
     
     # Check if the current route is excluded

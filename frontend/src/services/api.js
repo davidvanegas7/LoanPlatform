@@ -3,7 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 
 // Crear una instancia de axios con la URL base y configuración para CORS
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000/api/v1',
+  baseURL: process.env.REACT_APP_API_URL || 'http://127.0.0.1:5001/api/v1',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

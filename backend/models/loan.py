@@ -2,10 +2,14 @@ from config.db import Database
 import logging
 from datetime import datetime, timedelta
 import json
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+NACHA_IMMEDIATE_ORIGIN = os.getenv('NACHA_IMMEDIATE_ORIGIN', '1000000001')
+NACHA_ODFI_ID_SHORT = os.getenv('NACHA_ODFI_ID_SHORT', NACHA_IMMEDIATE_ORIGIN[1:9] if NACHA_IMMEDIATE_ORIGIN and len(NACHA_IMMEDIATE_ORIGIN) >=9 else '00000000')
 
 class Loan:
     def __init__(self):
@@ -79,7 +83,7 @@ class Loan:
             batch_id INT NOT NULL,
             payment_id INT NOT NULL,
             status ENUM('pending', 'processed', 'failed', 'returned') DEFAULT 'pending',
-            transaction_id VARCHAR(50) NULL,
+            trace_number VARCHAR(50) NULL,
             amount DECIMAL(10, 2) NOT NULL,
             failure_reason VARCHAR(255) NULL,
             processed_at TIMESTAMP NULL,
@@ -300,13 +304,14 @@ class Loan:
                 # Update payment status to processing
                 self.update_payment_status(payment['id'], 'processing')
                 
+                trace_number = f"{NACHA_ODFI_ID_SHORT}{str(payment['id']).zfill(7)}"
                 # Create ACH transaction
                 transaction_query = """
-                INSERT INTO ach_transactions (batch_id, payment_id, amount, status)
-                VALUES (%s, %s, %s, 'pending')
+                INSERT INTO ach_transactions (batch_id, payment_id, amount, status, trace_number)
+                VALUES (%s, %s, %s, 'pending', %s)
                 """
                 self.db.insert(transaction_query, (
-                    batch_id, payment['id'], payment['amount']
+                    batch_id, payment['id'], payment['amount'], trace_number
                 ))
                 
                 total_amount += float(payment['amount'])
@@ -343,7 +348,7 @@ class Loan:
             for transaction in failed_transactions:
                 payment_id = transaction.get('payment_id')
                 failure_reason = transaction.get('failure_reason', 'Unknown failure')
-                
+
                 # Update payment status to failed
                 self.update_payment_status(payment_id, 'failed', failure_reason)
                 
@@ -360,22 +365,22 @@ class Loan:
             logger.error(f"Error processing failed payments: {str(e)}")
             return {"error": f"Error processing failed payments: {str(e)}"} 
         
-    def get_payments_by_loan_ids(self, loan_ids, status):
+    def get_payments_by_loan_ids(self, loan_ids):
         try:
             # Convertir la lista de IDs a una cadena de texto con los IDs separados por comas
             if isinstance(loan_ids, list):
                 loan_ids_str = ','.join(map(str, loan_ids))
                 query = f"""
-                SELECT * FROM payments WHERE status = %s AND loan_id IN ({loan_ids_str}) ORDER BY due_date ASC
+                SELECT * FROM payments WHERE loan_id IN ({loan_ids_str}) ORDER BY due_date ASC
 
                 """
-                payments = self.db.fetch_all(query, (status,))
+                payments = self.db.fetch_all(query, ())
             else:
                 # Si solo es un ID, usar la consulta original
                 query = """
-                SELECT * FROM payments WHERE status = %s AND loan_id = %s ORDER BY due_date ASC
+                SELECT * FROM payments WHERE loan_id = %s ORDER BY due_date ASC
                 """
-                payments = self.db.fetch_all(query, (status, loan_ids))
+                payments = self.db.fetch_all(query, (loan_ids))
             return payments
         except Exception as e:
             logger.error(f"Error getting payments by loan IDs: {str(e)}")

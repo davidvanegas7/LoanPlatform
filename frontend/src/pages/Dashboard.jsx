@@ -110,13 +110,38 @@ const Dashboard = () => {
     }).format(amount);
   };
 
+  const getPaymentStatusBadge = (status) => {
+    const statusConfig = {
+      'paid': 'bg-green-100 text-green-800',
+      'scheduled': 'bg-yellow-100 text-yellow-800',
+      'failed': 'bg-red-100 text-red-800',
+      'processing': 'bg-blue-100 text-blue-800',
+    };
+  
+    const statusLabels = {
+      'paid': 'Pagado',
+      'scheduled': 'Programado',
+      'failed': 'Fallado',
+      'processing': 'Procesando',
+    };
+
+
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs ${statusConfig[status] || 'bg-gray-100 text-gray-800'}`}>
+        {statusLabels[status] || status}
+      </span>
+    );
+  };
+
   // Estado de la aplicación de préstamo
   const getLoanApplicationStatusBadge = (status) => {
     const statusConfig = {
       'pending': 'bg-yellow-100 text-yellow-800',
       'approved': 'bg-green-100 text-green-800',
       'rejected': 'bg-red-100 text-red-800',
+      'declined': 'bg-red-100 text-red-800',
       'draft': 'bg-gray-100 text-gray-800',
+      'undecided': 'bg-gray-100 text-gray-800',
       'under_review': 'bg-blue-100 text-blue-800',
     };
 
@@ -124,8 +149,10 @@ const Dashboard = () => {
       'pending': 'Pendiente',
       'approved': 'Aprobada',
       'rejected': 'Rechazada',
+      'declined': 'Declinada',
       'draft': 'Borrador',
       'under_review': 'En revisión',
+      'undecided': 'Indeciso',
     };
 
     return (
@@ -449,6 +476,9 @@ const Dashboard = () => {
                     Fecha de Vencimiento
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
@@ -464,6 +494,9 @@ const Dashboard = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(payment.due_date)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getPaymentStatusBadge(payment.status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <Link to={`/loans/${payment.loan_id}`} className="text-blue-600 hover:text-blue-900">

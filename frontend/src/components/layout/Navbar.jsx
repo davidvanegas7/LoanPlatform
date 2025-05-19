@@ -24,14 +24,6 @@ const Navbar = () => {
           </div>
           
           <div className="flex items-center">
-            <button
-              type="button"
-              className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-3"
-            >
-              <span className="sr-only">Ver notificaciones</span>
-              <FiBell className="h-6 w-6" />
-            </button>
-
             {/* Profile dropdown */}
             <div className="relative">
               <div>
