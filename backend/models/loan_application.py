@@ -2,6 +2,7 @@ from config.db import Database
 import logging
 import json
 from datetime import datetime
+import random
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,12 @@ class LoanApplication:
             tax_id VARCHAR(50),
             business_info JSON,
             financial_info JSON,
-            loan_details JSON,
+            loan_amount DECIMAL(10, 2) NULL,
+            loan_purpose VARCHAR(255) NULL,
+            loan_term INT NULL,
+            loan_interest_rate DECIMAL(5, 4) NULL,
+            loan_total_amount DECIMAL(12, 2) NULL,
+            loan_monthly_payment DECIMAL(12, 2) NULL,
             submitted_at TIMESTAMP NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -57,7 +63,7 @@ class LoanApplication:
     def get_applications_by_user(self, user_id):
         try:
             query = """
-            SELECT id, user_id, status, business_name, tax_id, created_at, updated_at, submitted_at
+            SELECT id, user_id, status, business_name, tax_id, loan_amount, loan_purpose, loan_term, loan_total_amount, loan_monthly_payment, loan_interest_rate, created_at, updated_at, submitted_at
             FROM loan_applications 
             WHERE user_id = %s
             ORDER BY created_at DESC
@@ -71,8 +77,8 @@ class LoanApplication:
     def get_application_by_id(self, application_id):
         try:
             query = """
-            SELECT id, user_id, status, business_name, business_info, 
-                  financial_info, loan_details, created_at, updated_at, submitted_at
+            SELECT id, user_id, status, business_name, tax_id, business_info, 
+                  financial_info, loan_amount, loan_purpose, loan_term, loan_total_amount, loan_monthly_payment, loan_interest_rate, created_at, updated_at, submitted_at
             FROM loan_applications 
             WHERE id = %s
             """
@@ -80,7 +86,7 @@ class LoanApplication:
             
             if application:
                 # Parse JSON fields
-                for json_field in ['business_info', 'financial_info', 'loan_details']:
+                for json_field in ['business_info', 'financial_info']:
                     if application.get(json_field):
                         if isinstance(application[json_field], str):
                             try:
@@ -136,17 +142,14 @@ class LoanApplication:
     
     def update_loan_details(self, application_id, data):
         try:
-            # Format as JSON for storage
-            loan_details_json = json.dumps(data)
-            
-            # Update loan details
+            # Update loan details columns
             query = """
             UPDATE loan_applications 
-            SET loan_details = %s
+            SET loan_amount = %s, loan_purpose = %s, loan_term = %s
             WHERE id = %s
             """
             
-            self.db.execute_query(query, (loan_details_json, application_id))
+            self.db.execute_query(query, (data['loan_amount'], data['loan_purpose'], data['loan_term'], application_id))
             
             # Return updated application
             return self.get_application_by_id(application_id)
@@ -168,8 +171,11 @@ class LoanApplication:
             if not application.get('financial_info'):
                 return {"error": "Financial information is required"}
                 
-            if not application.get('loan_details'):
-                return {"error": "Loan details are required"}
+            if not application.get('loan_amount'):
+                return {"error": "Loan amount is required"}
+                
+            if not application.get('loan_purpose'):
+                return {"error": "Loan purpose is required"}
             
             # Validate required fields in business_info
             business_info = application.get('business_info', {})
@@ -180,14 +186,6 @@ class LoanApplication:
             financial_info = application.get('financial_info', {})
             if 'annual_revenue' not in financial_info:
                 return {"error": "Annual revenue is required"}
-                
-            # Validate required fields in loan_details
-            loan_details = application.get('loan_details', {})
-            if 'loan_amount' not in loan_details:
-                return {"error": "Loan amount is required"}
-                
-            if 'loan_purpose' not in loan_details:
-                return {"error": "Loan purpose is required"}
             
             return {"valid": True}
         except Exception as e:
@@ -202,23 +200,60 @@ class LoanApplication:
             
             application = self.get_application_by_id(application_id)
 
-            if application.get('loan_details')['loan_amount'] < 50000:
+            if application.get('loan_amount') < 50000:
                 status = 'approved'
-            elif application.get('loan_details')['loan_amount'] == 50000:
+                loan_interest_rate = random.randint(5, 20) / 100 # 5% to 20%
+                # Calculando pago total con interés compuesto mensual
+                annual_rate = float(loan_interest_rate)
+                monthly_rate = annual_rate / 12  # Convertir tasa anual a mensual
+                principal = float(application.get('loan_amount'))
+                term_months = float(application.get('loan_term'))
+                
+                # Calculamos el pago mensual usando la fórmula de amortización
+                if monthly_rate > 0:
+                    loan_monthly_payment = principal * monthly_rate * (1 + monthly_rate)**term_months / ((1 + monthly_rate)**term_months - 1)
+                else:
+                    loan_monthly_payment = principal / term_months
+                    
+                loan_total_amount = loan_monthly_payment * term_months
+
+                query = """
+                UPDATE loan_applications 
+                SET status = %s, submitted_at = %s, loan_total_amount = %s, loan_interest_rate = %s, loan_monthly_payment = %s
+                WHERE id = %s
+                """
+                
+                self.db.execute_query(query, (status, current_time, loan_total_amount, loan_interest_rate, loan_monthly_payment, application_id))
+
+            elif application.get('loan_amount') == 50000:
                 status = 'undecided'
             else:
                 status = 'declined'
 
-            query = """
-            UPDATE loan_applications 
-            SET status = %s, submitted_at = %s
-            WHERE id = %s
-            """
-            
-            self.db.execute_query(query, (status, current_time, application_id))
+            if (status == 'declined' or status == 'undecided'):
+                query = """
+                UPDATE loan_applications 
+                SET status = %s, submitted_at = %s
+                WHERE id = %s
+                """
+                
+                self.db.execute_query(query, (status, current_time, application_id))
             
             # Return updated application
             return self.get_application_by_id(application_id)
         except Exception as e:
             logger.error(f"Error submitting application {application_id}: {str(e)}")
             return {"error": f"Error submitting application: {str(e)}"} 
+        
+    def update_status(self, application_id, status):
+        try:
+            query = """
+            UPDATE loan_applications 
+            SET status = %s
+            WHERE id = %s
+            """
+
+            self.db.execute_query(query, (status, application_id))
+        except Exception as e:
+            logger.error(f"Error updating status for application {application_id}: {str(e)}")
+            return {"error": f"Error updating status: {str(e)}"}

@@ -5,7 +5,6 @@
 - Flask
 - ReactJs
 - Mysql
-- Gemini AI
 
 ## Description
 

@@ -164,3 +164,92 @@ def my_endpoint():
     """
     # Implementation
 ```
+
+## Procesamiento Automático de Pagos ACH
+
+El sistema ahora incluye un procesador automático de pagos ACH que genera archivos en formato NACHA para ser enviados a la red ACH. Este proceso se ejecuta diariamente a las 11:00 AM.
+
+### Configuración
+
+Para configurar el procesamiento automático de pagos ACH, sigue estos pasos:
+
+1. Instala las dependencias adicionales:
+
+```
+pip install celery==5.2.7 redis==4.5.1 nacha==1.1.1
+```
+
+2. Configura las siguientes variables de entorno:
+
+```
+# Configuración de Celery
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+
+# Configuración de NACHA
+NACHA_IMMEDIATE_DESTINATION=999999999  # Número de routing del banco receptor
+NACHA_IMMEDIATE_ORIGIN=1234567890      # ID de la compañía originadora
+NACHA_COMPANY_NAME=LOAN PLATFORM       # Nombre de la compañía
+NACHA_COMPANY_ID=1234567890           # ID de la compañía
+NACHA_ODFI_ID=99999999                # ID del banco originador
+NACHA_OUTPUT_DIR=ach_files            # Directorio para guardar los archivos generados
+```
+
+3. Asegúrate de que Redis esté instalado y ejecutándose:
+
+```
+# En macOS con Homebrew
+brew install redis
+brew services start redis
+
+# En Ubuntu/Debian
+sudo apt-get install redis-server
+sudo systemctl start redis
+```
+
+### Ejecución
+
+Para iniciar el worker de Celery:
+
+```
+cd backend
+celery -A celery_worker worker --loglevel=info
+```
+
+Para iniciar el scheduler de Celery (beat):
+
+```
+cd backend
+celery -A celery_worker beat --loglevel=info
+```
+
+### Proceso de Pagos
+
+1. Cada día a las 11:00 AM, el sistema automáticamente:
+
+   - Identifica todos los pagos programados para el día
+   - Crea un batch ACH en la base de datos
+   - Genera un archivo en formato NACHA con todas las transacciones
+   - Guarda el archivo en el directorio configurado
+
+2. El archivo generado debe ser enviado manualmente a la red ACH para su procesamiento.
+
+3. Para procesar los archivos de retorno con transacciones fallidas:
+   - Coloca el archivo de retorno en un directorio accesible
+   - Utiliza el endpoint API: `POST /api/v1/payments/process-failed-payments` con el parámetro `file_path`
+
+### Estructura de los Archivos NACHA
+
+Los archivos generados siguen el formato NACHA estándar con:
+
+- Un encabezado de archivo (File Header Record)
+- Un lote de transacciones (Batch Header Record)
+- Registros de entrada para cada transacción (Entry Detail Records)
+- Un control de lote (Batch Control Record)
+- Un control de archivo (File Control Record)
+
+### Notas Importantes
+
+- La información bancaria se extrae automáticamente de los datos de aplicación de préstamo.
+- Se busca la información bancaria en diferentes campos del JSON de la aplicación.
+- El sistema identifica automáticamente la información necesaria como números de cuenta y routing.

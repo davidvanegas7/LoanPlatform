@@ -92,7 +92,7 @@ def get_loan(loan_id):
             }), 404
             
         # Verify user owns this loan
-        if loan['user_id'] != user_id:
+        if str(loan['user_id']) != str(user_id):
             return jsonify({
                 "error": "Unauthorized",
                 "message": "You do not have permission to access this loan"
@@ -194,7 +194,7 @@ def fund_loan(application_id):
             }), 404
             
         # Verify user owns this application
-        if application['user_id'] != user_id:
+        if str(application['user_id']) != str(user_id):
             return jsonify({
                 "error": "Unauthorized",
                 "message": "You do not have permission to fund this application"
@@ -208,31 +208,27 @@ def fund_loan(application_id):
             }), 400
         
         # Get loan details from application instead of request
-        loan_details = application.get('loan_details', {})
-        if not loan_details:
+        if not application.get('loan_amount') or not application.get('loan_term'):
             return jsonify({
                 "error": "Invalid application",
                 "message": "Application does not have valid loan details"
             }), 400
         
-        term_days = loan_details.get('term_days')
-        interest_rate = loan_details.get('interest_rate')
-        loan_amount = loan_details.get('loan_amount')
-        
-        if not term_days or not interest_rate or not loan_amount:
-            return jsonify({
-                "error": "Missing required loan details",
-                "message": "Application must include term_days, interest_rate, and loan_amount in loan_details"
-            }), 400
-        
+        # Para este ejemplo, asumimos que term_days y term_months son lo mismo (multiplicado por 30)
+        term_days = application.get('loan_term') * 30  # Convertimos meses a días aproximados
+        interest_rate = application.get('loan_interest_rate')  # Valor por defecto o se podría agregar como columna si es necesario
+        loan_amount = application.get('loan_amount')
+        loan_total_amount = application.get('loan_total_amount')
         # Create loan object
         loan_data = {
             'application_id': application_id,
             'user_id': user_id,
-            'business_id': 1,  # This would need to be properly set in a real system
+            'business_name': application.get('business_name'),
+            'tax_id': application.get('tax_id'),
             'amount': loan_amount,
             'term_days': term_days,
-            'interest_rate': interest_rate
+            'interest_rate': interest_rate,
+            'remaining_balance': loan_total_amount,
         }
         
         # Create loan
@@ -311,7 +307,7 @@ def update_loan_status(loan_id):
             }), 404
             
         # Verify user owns this loan
-        if loan['user_id'] != user_id:
+        if str(loan['user_id']) != str(user_id):
             return jsonify({
                 "error": "Unauthorized",
                 "message": "You do not have permission to update this loan"

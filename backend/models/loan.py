@@ -19,7 +19,8 @@ class Loan:
             id INT AUTO_INCREMENT PRIMARY KEY,
             application_id INT NOT NULL,
             user_id INT NOT NULL,
-            business_id INT NOT NULL,
+            business_name VARCHAR(255) NOT NULL,
+            tax_id VARCHAR(50) NOT NULL,
             status ENUM('active', 'closed', 'defaulted') DEFAULT 'active',
             amount DECIMAL(10, 2) NOT NULL,
             term_days INT NOT NULL,
@@ -95,35 +96,31 @@ class Loan:
             # Extract loan data
             application_id = data.get('application_id')
             user_id = data.get('user_id')
-            business_id = data.get('business_id')
+            business_name = data.get('business_name')
+            tax_id = data.get('tax_id')
             amount = data.get('amount')
             term_days = data.get('term_days')
             interest_rate = data.get('interest_rate')
-            
+            remaining_balance = data.get('remaining_balance')
             # Calculate loan details
             start_date = datetime.now().date()
             end_date = start_date + timedelta(days=term_days)
             
-            # Calculate remaining balance (initial amount + interest)
-            interest_amount = (amount * interest_rate / 100)
-            total_amount = amount + interest_amount
-            remaining_balance = total_amount
-            
             # Calculate daily payment
-            daily_payment = total_amount / term_days
+            daily_payment = remaining_balance / term_days
             
             # Insert new loan
             query = """
             INSERT INTO loans (
-                application_id, user_id, business_id, amount, term_days, 
-                interest_rate, remaining_balance, daily_payment, 
+                application_id, user_id, business_name, tax_id,
+                amount, term_days, interest_rate, remaining_balance, daily_payment, 
                 start_date, end_date, funded_at
             ) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             """
             loan_id = self.db.insert(query, (
-                application_id, user_id, business_id, amount, term_days,
-                interest_rate, remaining_balance, daily_payment,
+                application_id, user_id, business_name, tax_id,
+                amount, term_days, interest_rate, remaining_balance, daily_payment,
                 start_date, end_date
             ))
             
@@ -165,6 +162,17 @@ class Loan:
             return loan
         except Exception as e:
             logger.error(f"Error getting loan {loan_id}: {str(e)}")
+            return None
+    
+    def get_loan_by_user_id(self, user_id):
+        try:
+            query = """
+            SELECT * FROM loans WHERE user_id = %s
+            """
+            loans = self.db.fetch_all(query, (user_id,))
+            return loans
+        except Exception as e:
+            logger.error(f"Error getting loan {user_id}: {str(e)}")
             return None
     
     def get_loans_by_user(self, user_id):
@@ -351,3 +359,24 @@ class Loan:
         except Exception as e:
             logger.error(f"Error processing failed payments: {str(e)}")
             return {"error": f"Error processing failed payments: {str(e)}"} 
+        
+    def get_payments_by_loan_ids(self, loan_ids, status):
+        try:
+            # Convertir la lista de IDs a una cadena de texto con los IDs separados por comas
+            if isinstance(loan_ids, list):
+                loan_ids_str = ','.join(map(str, loan_ids))
+                query = f"""
+                SELECT * FROM payments WHERE status = %s AND loan_id IN ({loan_ids_str}) ORDER BY due_date ASC
+
+                """
+                payments = self.db.fetch_all(query, (status,))
+            else:
+                # Si solo es un ID, usar la consulta original
+                query = """
+                SELECT * FROM payments WHERE status = %s AND loan_id = %s ORDER BY due_date ASC
+                """
+                payments = self.db.fetch_all(query, (status, loan_ids))
+            return payments
+        except Exception as e:
+            logger.error(f"Error getting payments by loan IDs: {str(e)}")
+            return []

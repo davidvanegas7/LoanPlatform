@@ -1,7 +1,11 @@
-Flask==2.2.3
+Flask==2.0.1
 Flask-Cors==3.0.10
-Flask-JWT-Extended==4.4.4
-mysql-connector-python==8.0.32
+Flask-JWT-Extended==4.3.1
+mysql-connector-python==8.1.0
 bcrypt==4.0.1
-python-dotenv==1.0.0
-flasgger==0.9.5 
+python-dotenv==0.19.0
+flasgger==0.9.5
+PyJWT==2.6.0
+celery==5.2.7
+redis==4.5.1
+ach==0.2 
