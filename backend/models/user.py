@@ -20,6 +20,7 @@ class User:
             first_name VARCHAR(100),
             last_name VARCHAR(100),
             role ENUM('admin', 'user') DEFAULT 'user',
+            language VARCHAR(10) DEFAULT 'en',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -42,7 +43,7 @@ class User:
         """
         self.db.execute_query(query)
         
-    def create_user(self, email, password, first_name=None, last_name=None, role='user'):
+    def create_user(self, email, password, first_name=None, last_name=None, role='user', language='en'):
         try:
             # Normalize email
             normalized_email = email.strip().lower()
@@ -63,10 +64,10 @@ class User:
         
             # Insert new user
             query = """
-            INSERT INTO users (email, password, first_name, last_name, role) 
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO users (email, password, first_name, last_name, role, language) 
+            VALUES (%s, %s, %s, %s, %s, %s)
             """
-            user_id = self.db.insert(query, (normalized_email, hashed_password, first_name, last_name, role))
+            user_id = self.db.insert(query, (normalized_email, hashed_password, first_name, last_name, role, language))
             
             if user_id:
                 logger.info(f"User created with ID: {user_id}")
@@ -75,35 +76,14 @@ class User:
                     "email": normalized_email,
                     "first_name": first_name,
                     "last_name": last_name,
-                    "role": role
+                    "role": role,
+                    "language": language
                 }
             return {"error": "Error creating user"}
         except Exception as e:
             logger.error(f"Error in create_user: {str(e)}")
             return {"error": f"Error creating user: {str(e)}"}
     
-    def create_business_owner(self, user_id, business_name, business_address=None, phone_number=None, tax_id=None):
-        try:
-            query = """
-            INSERT INTO business_owners (user_id, business_name, business_address, phone_number, tax_id)
-            VALUES (%s, %s, %s, %s, %s)
-            """
-            business_id = self.db.insert(query, (user_id, business_name, business_address, phone_number, tax_id))
-            
-            if business_id:
-                return {
-                    "id": business_id,
-                    "user_id": user_id,
-                    "business_name": business_name,
-                    "business_address": business_address,
-                    "phone_number": phone_number,
-                    "tax_id": tax_id
-                }
-            return {"error": "Error creating business information"}
-        except Exception as e:
-            logger.error(f"Error in create_business_owner: {str(e)}")
-            return {"error": f"Error creating business: {str(e)}"}
-     
     def get_all_users(self):
         """
         Get all users for diagnostics
@@ -124,7 +104,7 @@ class User:
             logger.info(f"Trying to verify user with email: '{normalized_email}'")
             
             # Find user by normalized email
-            query = "SELECT id, email, password, first_name, last_name, role FROM users WHERE LOWER(email) = LOWER(%s)"
+            query = "SELECT id, email, password, first_name, last_name, role, language FROM users WHERE LOWER(email) = LOWER(%s)"
             user = self.db.fetch_one(query, (normalized_email,))
             
             if not user:
@@ -163,3 +143,55 @@ class User:
         except Exception as e:
             logger.error(f"Error in verify_user: {str(e)}")
             return None 
+        
+    def get_user_by_id(self, user_id):
+        try:
+            query = """
+            SELECT id, email, first_name, last_name, language
+            FROM users
+            WHERE id = %s
+            """
+            user = self.db.fetch_one(query, (user_id,))
+            return user
+        except Exception as e:
+            logger.error(f"Error in get_user_by_id: {str(e)}")
+            return None
+    
+    def update_user(self, user_id, data):
+        try:
+            query = """
+            UPDATE users
+            SET first_name = %s, last_name = %s
+            WHERE id = %s
+            """
+            self.db.execute_query(query, (data['first_name'], data['last_name'], user_id))
+            return self.get_user_by_id(user_id)
+        except Exception as e:
+            logger.error(f"Error in update_user: {str(e)}")
+            return {"error": f"Error updating user: {str(e)}"}
+
+    def update_language(self, user_id, language):
+        try:
+            query = """
+            UPDATE users
+            SET language = %s
+            WHERE id = %s
+            """
+            self.db.execute_query(query, (language, user_id))
+            return self.get_user_by_id(user_id)
+        except Exception as e:
+            logger.error(f"Error in update_language: {str(e)}")
+            return {"error": f"Error updating language: {str(e)}"}
+    
+    def get_language(self, user_id):
+        try:
+            query = """
+            SELECT language
+            FROM users
+            WHERE id = %s
+            """
+            result = self.db.fetch_one(query, (user_id,))
+            return result['language'] if result else 'en'
+        except Exception as e:
+            logger.error(f"Error in get_language: {str(e)}")
+            return 'en'

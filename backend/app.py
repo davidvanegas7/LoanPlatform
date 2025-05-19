@@ -7,6 +7,7 @@ from flasgger import Swagger
 from functools import wraps
 import werkzeug.datastructures
 import logging
+from config.celery_config import celery_app
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,16 +23,34 @@ from routes.loans import loan_bp
 from routes.payments import payment_bp
 
 app = Flask(__name__)
+celery_app.conf.update(app.config)
 
-# CORS configuration
-CORS(app)
+# CORS configuration with more specific settings
+CORS(app, 
+     resources={r"/*": {
+         "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin"],
+         "expose_headers": ["Content-Type", "Authorization"],
+         "supports_credentials": True,
+         "max_age": 86400
+     }})
+
+# Configuración adicional de CORS para manejar OPTIONS
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 # JSON configuration to use UTF-8
 app.config['JSON_AS_ASCII'] = False
 
 # JWT configuration
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "default_secret_key")
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", 3600))
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", 36000))
 app.config["JWT_HEADER_NAME"] = "Authorization"
 app.config["JWT_HEADER_TYPE"] = "Bearer"
 # Additional configurations for debugging
@@ -163,7 +182,8 @@ def before_request():
     ]
     
     excluded_prefixes = [
-        '/api/v1/auth/',  # All authentication endpoints
+        '/api/v1/auth/login',  # Login endpoint
+        '/api/v1/auth/register',  # Register endpoint
         '/flasgger_static/',  # Everything in flasgger_static
     ]
     

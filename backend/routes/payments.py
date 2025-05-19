@@ -4,6 +4,7 @@ from models.loan import Loan
 import logging
 from datetime import datetime, date
 import json
+from tasks.ach_processor import generate_daily_ach_file, process_ach_return_file
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +15,68 @@ payment_bp = Blueprint('payments', __name__)
 
 # Initialize models
 loan_model = Loan()
+
+
+@payment_bp.route('/', methods=['GET'])
+@jwt_required()
+def get_payments():
+    """
+    Get all pending payments
+    ---
+    parameters:
+      - name: status
+        in: query
+        required: false
+        type: string
+        description: Status of the payments to filter by (optional)
+        enum: [scheduled, processing, completed, failed]
+      - name: limit
+        in: query
+        required: false
+        type: integer
+        description: Number of payments to return (optional)
+        default: 10
+      - name: sort
+        in: query
+        required: false
+        type: string
+        description: Sort order (optional)
+        default: created_at:asc
+        
+    tags:
+      - Payments
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: List of payments for the loan
+      401:
+        description: Unauthorized
+      404:
+        description: Loan not found
+      500:
+        description: Server error
+    """
+    try:
+        status = 'scheduled'
+        # Get user ID from JWT token
+        user_id = get_jwt_identity()
+        # Get loan to verify ownership
+        loans = loan_model.get_loan_by_user_id(user_id)
+        loan_ids = [loan['id'] for loan in loans]
+
+        payments = loan_model.get_payments_by_loan_ids(loan_ids, status)        
+        
+        return jsonify({
+            "payments": payments,
+            "status": "success"
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting payments {str(e)}")
+        return jsonify({
+            "error": "Failed to retrieve payments",
+            "message": str(e)
+        }), 500
 
 @payment_bp.route('/loan/<int:loan_id>', methods=['GET'])
 @jwt_required()
@@ -55,7 +118,7 @@ def get_loan_payments(loan_id):
             }), 404
             
         # Verify user owns this loan
-        if loan['user_id'] != user_id:
+        if str(loan['user_id']) != str(user_id):
             return jsonify({
                 "error": "Unauthorized",
                 "message": "You do not have permission to access payments for this loan"
@@ -118,7 +181,7 @@ def get_payment(payment_id):
         loan = loan_model.get_loan_by_id(payment['loan_id'])
         
         # Verify user owns the loan this payment belongs to
-        if loan['user_id'] != user_id:
+        if str(loan['user_id']) != str(user_id):
             return jsonify({
                 "error": "Unauthorized",
                 "message": "You do not have permission to access this payment"
@@ -194,7 +257,7 @@ def update_payment_status(payment_id):
         loan = loan_model.get_loan_by_id(payment['loan_id'])
         
         # Verify user owns the loan this payment belongs to
-        if loan['user_id'] != user_id:
+        if str(loan['user_id']) != str(user_id):
             return jsonify({
                 "error": "Unauthorized",
                 "message": "You do not have permission to update this payment"
@@ -362,5 +425,158 @@ def process_failed_payments():
         logger.error(f"Error processing failed payments: {str(e)}")
         return jsonify({
             "error": "Failed to process failed payments",
+            "message": str(e)
+        }), 500
+
+@payment_bp.route('/generate-ach-file', methods=['POST'])
+@jwt_required()
+def generate_ach_file():
+    """
+    Generate NACHA formatted ACH file for today's scheduled payments
+    ---
+    tags:
+      - Payments
+    parameters:
+      - name: body
+        in: body
+        schema:
+          properties:
+            batch_date:
+              type: string
+              format: date
+              description: Date for which to create the ACH file (defaults to today)
+              example: "2023-06-01"
+            async_mode:
+              type: boolean
+              description: Whether to process the file asynchronously
+              default: false
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: ACH file generation started or completed
+      400:
+        description: Invalid request data
+      500:
+        description: Server error
+    """
+    try:
+        # Get request data
+        data = request.get_json() or {}
+        batch_date_str = data.get('batch_date')
+        async_mode = data.get('async_mode', False)
+        
+        # Parse batch date if provided
+        batch_date = None
+        if batch_date_str:
+            try:
+                batch_date = datetime.strptime(batch_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({
+                    "error": "Formato de fecha inválido",
+                    "message": "La fecha debe estar en formato YYYY-MM-DD"
+                }), 400
+        
+        if async_mode:
+            # Ejecutar la tarea de manera asíncrona
+            task = generate_daily_ach_file.delay()
+            return jsonify({
+                "message": "Generación de archivo ACH iniciada",
+                "task_id": task.id,
+                "status": "success"
+            }), 202
+        else:
+            # Ejecutar la tarea de manera síncrona
+            result = generate_daily_ach_file()
+            
+            if 'error' in result:
+                return jsonify({
+                    "error": "Error al generar archivo ACH",
+                    "message": result['error']
+                }), 500
+                
+            return jsonify({
+                "message": "Archivo ACH generado exitosamente",
+                "result": result,
+                "status": "success"
+            }), 200
+    except Exception as e:
+        logger.error(f"Error al generar archivo ACH: {str(e)}")
+        return jsonify({
+            "error": "Error al generar archivo ACH",
+            "message": str(e)
+        }), 500
+
+@payment_bp.route('/process-return-file', methods=['POST'])
+@jwt_required()
+def process_return_file():
+    """
+    Process an ACH return file containing failed transactions
+    ---
+    tags:
+      - Payments
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          properties:
+            file_path:
+              type: string
+              description: Path to the ACH return file
+              example: "/path/to/return_file.txt"
+            async_mode:
+              type: boolean
+              description: Whether to process the file asynchronously
+              default: false
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: ACH return file processing started or completed
+      400:
+        description: Invalid request data
+      500:
+        description: Server error
+    """
+    try:
+        # Get request data
+        data = request.get_json()
+        file_path = data.get('file_path')
+        async_mode = data.get('async_mode', False)
+        
+        if not file_path:
+            return jsonify({
+                "error": "Datos inválidos",
+                "message": "Se requiere la ruta del archivo"
+            }), 400
+        
+        if async_mode:
+            # Ejecutar la tarea de manera asíncrona
+            task = process_ach_return_file.delay(file_path)
+            return jsonify({
+                "message": "Procesamiento de archivo de retorno ACH iniciado",
+                "task_id": task.id,
+                "status": "success"
+            }), 202
+        else:
+            # Ejecutar la tarea de manera síncrona
+            result = process_ach_return_file(file_path)
+            
+            if 'error' in result:
+                return jsonify({
+                    "error": "Error al procesar archivo de retorno ACH",
+                    "message": result['error']
+                }), 500
+                
+            return jsonify({
+                "message": "Archivo de retorno ACH procesado exitosamente",
+                "result": result,
+                "status": "success"
+            }), 200
+    except Exception as e:
+        logger.error(f"Error al procesar archivo de retorno ACH: {str(e)}")
+        return jsonify({
+            "error": "Error al procesar archivo de retorno ACH",
             "message": str(e)
         }), 500 
