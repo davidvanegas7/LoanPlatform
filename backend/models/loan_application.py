@@ -224,7 +224,7 @@ class LoanApplication:
             
             application = self.get_application_by_id(application_id)
 
-            if int(application.get('loan_amount')) < 50000:
+            if float(application.get('loan_amount')) < 50000.00:
                 status = 'approved'
                 loan_interest_rate = random.randint(5, 20) / 100 # 5% to 20%
                 # Calculando pago total con interés compuesto mensual
@@ -249,7 +249,7 @@ class LoanApplication:
                 
                 self.db.execute_query(query, (status, current_time, loan_total_amount, loan_interest_rate, loan_monthly_payment, application_id))
 
-            elif int(application.get('loan_amount')) == 50000:
+            elif float(application.get('loan_amount')) == 50000.00:
                 status = 'undecided'
             else:
                 status = 'declined'
