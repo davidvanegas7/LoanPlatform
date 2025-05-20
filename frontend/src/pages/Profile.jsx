@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiUser, FiMail, FiPhone } from 'react-icons/fi';
+import { FiUser, FiMail } from 'react-icons/fi';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Alert from '../components/common/Alert';
@@ -78,10 +78,6 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getFullName = () => {
-    return `${formData.first_name} ${formData.last_name}`.trim();
   };
 
   return (

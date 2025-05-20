@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUser, FiLogOut, FiBell } from 'react-icons/fi';
+import { FiUser } from 'react-icons/fi';
 
 /**
  * Componente de barra de navegación
@@ -9,6 +9,12 @@ const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const toggleProfile = () => setIsProfileOpen(!isProfileOpen);
   const closeProfile = () => setIsProfileOpen(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
 
   return (
     <nav className="bg-white shadow-sm">
@@ -68,7 +74,7 @@ const Navbar = () => {
                   <button
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     role="menuitem"
-                    onClick={closeProfile}
+                    onClick={handleLogout}
                   >
                     Cerrar Sesión
                   </button>

@@ -15,8 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
  */
 const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
-  const [error, setError] = useState('');
+  const { register, error, setError } = useAuth();
   const [success, setSuccess] = useState('');
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
@@ -38,8 +37,6 @@ const Register = () => {
     password_confirmation: Yup.string()
       .oneOf([Yup.ref('password'), null], 'Las contraseñas deben coincidir')
       .required('Debes confirmar la contraseña'),
-    business_name: Yup.string()
-      .required('El nombre del negocio es obligatorio'),
     terms_accepted: Yup.boolean()
       .oneOf([true], 'Debes aceptar los términos y condiciones y la política de privacidad'),
   });
@@ -51,17 +48,14 @@ const Register = () => {
     email: '',
     password: '',
     password_confirmation: '',
-    business_name: '',
-    phone: '',
     terms_accepted: false,
   };
 
   // Manejar envío del formulario
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      setError('');
+      // setError('');
       setSuccess('');
-      
       // Crear objeto de datos para enviar
       const userData = {
         first_name: values.first_name,
@@ -69,22 +63,16 @@ const Register = () => {
         email: values.email,
         password: values.password,
         password_confirmation: values.password_confirmation,
-        business_name: values.business_name,
-        phone: values.phone,
       };
       
       await register(userData);
-      
       // Mostrar mensaje de éxito
       setSuccess('¡Registro exitoso! Redirigiendo a la página de inicio de sesión...');
-      resetForm();
-      
-      // Redirigir al login después de 2 segundos
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+
+      navigate('/dashboard');    
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al registrarse. Inténtalo de nuevo más tarde.');
+      const errorMessage = err.response?.data?.error || 'Error al registrarse. Inténtalo de nuevo más tarde.';
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -154,21 +142,6 @@ const Register = () => {
                     type="email"
                     autoComplete="email"
                     placeholder="tucorreo@ejemplo.com"
-                  />
-
-                  <FormInput
-                    label="Nombre del negocio"
-                    name="business_name"
-                    type="text"
-                    placeholder="Nombre de tu empresa"
-                  />
-
-                  <FormInput
-                    label="Teléfono (opcional)"
-                    name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    placeholder="(123) 456-7890"
                   />
 
                   <FormInput

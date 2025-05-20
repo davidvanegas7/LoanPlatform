@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -12,8 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
  */
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [error, setError] = useState('');
+  const { login, error, setError } = useAuth();
 
   // Esquema de validación con Yup
   const validationSchema = Yup.object({
@@ -34,7 +33,6 @@ const Login = () => {
   // Manejar envío del formulario
   const handleSubmit = async (values, { setSubmitting }) => {
     try {
-      setError('');
       await login(values.email, values.password);
       navigate('/dashboard');
     } catch (err) {

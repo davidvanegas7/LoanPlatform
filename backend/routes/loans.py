@@ -239,10 +239,7 @@ def fund_loan(application_id):
                 "error": "Failed to fund loan",
                 "message": loan['error']
             }), 500
-        
-        # Update application status
-        loan_application_model.update_status(application_id, 'funded')
-        
+                
         return jsonify({
             "message": "Loan funded successfully",
             "loan": loan,
