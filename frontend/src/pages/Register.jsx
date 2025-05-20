@@ -15,8 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
  */
 const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
-  const [error, setError] = useState('');
+  const { register, error, setError } = useAuth();
   const [success, setSuccess] = useState('');
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
@@ -55,9 +54,8 @@ const Register = () => {
   // Manejar envío del formulario
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      setError('');
+      // setError('');
       setSuccess('');
-      
       // Crear objeto de datos para enviar
       const userData = {
         first_name: values.first_name,
@@ -68,17 +66,13 @@ const Register = () => {
       };
       
       await register(userData);
-      
       // Mostrar mensaje de éxito
       setSuccess('¡Registro exitoso! Redirigiendo a la página de inicio de sesión...');
-      // Redirigir al login después de 2 segundos
-      setTimeout(() => {
-        navigate('/login');
-      }, 400);
-    
-      resetForm();
+
+      navigate('/dashboard');    
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al registrarse. Inténtalo de nuevo más tarde.');
+      const errorMessage = err.response?.data?.error || 'Error al registrarse. Inténtalo de nuevo más tarde.';
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }

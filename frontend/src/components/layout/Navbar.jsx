@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUser, FiLogOut, FiBell } from 'react-icons/fi';
+import { FiUser } from 'react-icons/fi';
 
 /**
  * Componente de barra de navegación

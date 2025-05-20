@@ -38,6 +38,16 @@ const AuthService = {
   register: async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
+
+      const { access_token } = response.data;
+      
+      // Guardar el token en localStorage
+      localStorage.setItem('token', access_token);
+      
+      // Decodificar el token para obtener los datos del usuario
+      const decodedToken = jwtDecode(access_token);
+      localStorage.setItem('user', JSON.stringify(decodedToken));
+
       return response.data;
     } catch (error) {
       throw error;

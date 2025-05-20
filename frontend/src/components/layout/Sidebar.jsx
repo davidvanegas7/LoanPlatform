@@ -4,9 +4,7 @@ import {
   FiHome, 
   FiFileText, 
   FiDollarSign, 
-  FiCreditCard, 
-  FiUser, 
-  FiSettings,
+  FiCreditCard,
 } from 'react-icons/fi';
 
 /**

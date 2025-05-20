@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiBell, FiLock, FiGlobe } from 'react-icons/fi';
+import { FiGlobe } from 'react-icons/fi';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Alert from '../components/common/Alert';
@@ -34,16 +34,6 @@ const Settings = () => {
 
     fetchUserSettings();
   }, []);
-
-  const handleToggle = (category, setting) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [setting]: !prev[category][setting]
-      }
-    }));
-  };
 
   const handleLanguageChange = (e) => {
     setSettings(prev => ({

@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(AuthService.getCurrentUser());
       return data;
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al iniciar sesión');
+      setError(err.response?.data?.error || 'Error al iniciar sesión');
       throw err;
     } finally {
       setLoading(false);
@@ -43,9 +43,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const data = await AuthService.register(userData);
+      setCurrentUser(AuthService.getCurrentUser());
       return data;
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al registrarse');
+      setError(err.response?.data?.error || 'Error al registrarse');
       throw err;
     } finally {
       setLoading(false);
