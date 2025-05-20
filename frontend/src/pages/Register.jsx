@@ -38,8 +38,6 @@ const Register = () => {
     password_confirmation: Yup.string()
       .oneOf([Yup.ref('password'), null], 'Las contraseñas deben coincidir')
       .required('Debes confirmar la contraseña'),
-    business_name: Yup.string()
-      .required('El nombre del negocio es obligatorio'),
     terms_accepted: Yup.boolean()
       .oneOf([true], 'Debes aceptar los términos y condiciones y la política de privacidad'),
   });
@@ -51,8 +49,6 @@ const Register = () => {
     email: '',
     password: '',
     password_confirmation: '',
-    business_name: '',
-    phone: '',
     terms_accepted: false,
   };
 
@@ -75,12 +71,12 @@ const Register = () => {
       
       // Mostrar mensaje de éxito
       setSuccess('¡Registro exitoso! Redirigiendo a la página de inicio de sesión...');
-      resetForm();
-      
       // Redirigir al login después de 2 segundos
       setTimeout(() => {
         navigate('/login');
-      }, 2000);
+      }, 400);
+    
+      resetForm();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al registrarse. Inténtalo de nuevo más tarde.');
     } finally {
