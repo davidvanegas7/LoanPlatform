@@ -70,7 +70,7 @@ class LoanApplication:
             ORDER BY created_at DESC
             """
             applications = self.db.fetch_all(query, (user_id,))
-            return applications
+            return self._convert_decimal_to_float(applications)
         except Exception as e:
             logger.error(f"Error getting applications for user {user_id}: {str(e)}")
             return []
@@ -111,14 +111,7 @@ class LoanApplication:
                         # If it's neither bytes, str, nor dict, it might be an issue or already parsed.
                         # For now, we only explicitly handle bytes and str.
             
-                # Convert Decimal fields to string for JSON serialization
-                decimal_fields = ['loan_amount', 'loan_total_amount', 'loan_monthly_payment', 'loan_interest_rate']
-                for field in decimal_fields:
-                    if field in application and application[field] is not None:
-                        if isinstance(application[field], Decimal):
-                            application[field] = str(application[field])
-            
-            return application
+            return self._convert_decimal_to_float(application)
         except Exception as e:
             logger.error(f"Error getting application {application_id}: {str(e)}")
             return None
@@ -281,3 +274,13 @@ class LoanApplication:
         except Exception as e:
             logger.error(f"Error updating status for application {application_id}: {str(e)}")
             return {"error": f"Error updating status: {str(e)}"}
+
+    # Helper method to convert Decimal objects to float for JSON serialization
+    def _convert_decimal_to_float(self, data):
+        if isinstance(data, list):
+            return [self._convert_decimal_to_float(item) for item in data]
+        elif isinstance(data, dict):
+            return {key: self._convert_decimal_to_float(value) for key, value in data.items()}
+        elif isinstance(data, Decimal):
+            return float(data)
+        return data
