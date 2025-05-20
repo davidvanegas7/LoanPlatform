@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timedelta
 import json
 import os
+from decimal import Decimal
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -95,6 +96,16 @@ class Loan:
         """
         self.db.execute_query(ach_transactions_query)
     
+    # Helper method to convert Decimal objects to float for JSON serialization
+    def _convert_decimal_to_float(self, data):
+        if isinstance(data, list):
+            return [self._convert_decimal_to_float(item) for item in data]
+        elif isinstance(data, dict):
+            return {key: self._convert_decimal_to_float(value) for key, value in data.items()}
+        elif isinstance(data, Decimal):
+            return float(data)
+        return data
+
     def create_loan(self, data):
         try:
             # Extract loan data
@@ -111,7 +122,19 @@ class Loan:
             end_date = start_date + timedelta(days=term_days)
             
             # Calculate daily payment
-            daily_payment = remaining_balance / term_days
+            # Ensure remaining_balance and term_days are numeric before division
+            try:
+                numeric_remaining_balance = float(remaining_balance)
+                numeric_term_days = int(term_days)
+                if numeric_term_days == 0:
+                    raise ValueError("Term days cannot be zero.")
+                daily_payment = numeric_remaining_balance / numeric_term_days
+            except ValueError as ve:
+                logger.error(f"Invalid numeric value for remaining_balance or term_days: {ve}")
+                return {"error": f"Invalid numeric value for remaining_balance or term_days: {ve}"}
+            except TypeError as te:
+                logger.error(f"Type error during daily_payment calculation (remaining_balance: {remaining_balance}, term_days: {term_days}): {te}")
+                return {"error": f"Type error during daily_payment calculation: {te}"}
             
             # Insert new loan
             query = """
@@ -163,7 +186,7 @@ class Loan:
             SELECT * FROM loans WHERE id = %s
             """
             loan = self.db.fetch_one(query, (loan_id,))
-            return loan
+            return self._convert_decimal_to_float(loan)
         except Exception as e:
             logger.error(f"Error getting loan {loan_id}: {str(e)}")
             return None
@@ -174,7 +197,7 @@ class Loan:
             SELECT * FROM loans WHERE user_id = %s
             """
             loans = self.db.fetch_all(query, (user_id,))
-            return loans
+            return self._convert_decimal_to_float(loans)
         except Exception as e:
             logger.error(f"Error getting loan {user_id}: {str(e)}")
             return None
@@ -185,7 +208,7 @@ class Loan:
             SELECT * FROM loans WHERE user_id = %s
             """
             loans = self.db.fetch_all(query, (user_id,))
-            return loans
+            return self._convert_decimal_to_float(loans)
         except Exception as e:
             logger.error(f"Error getting loans for user {user_id}: {str(e)}")
             return []
@@ -198,7 +221,7 @@ class Loan:
             ORDER BY due_date ASC
             """
             payments = self.db.fetch_all(query, (loan_id,))
-            return payments
+            return self._convert_decimal_to_float(payments)
         except Exception as e:
             logger.error(f"Error getting payments for loan {loan_id}: {str(e)}")
             return []
@@ -241,7 +264,7 @@ class Loan:
             SELECT * FROM payments WHERE id = %s
             """
             payment = self.db.fetch_one(query, (payment_id,))
-            return payment
+            return self._convert_decimal_to_float(payment)
         except Exception as e:
             logger.error(f"Error getting payment {payment_id}: {str(e)}")
             return None
@@ -338,7 +361,7 @@ class Loan:
             SELECT * FROM ach_batches WHERE id = %s
             """
             batch = self.db.fetch_one(query, (batch_id,))
-            return batch
+            return self._convert_decimal_to_float(batch)
         except Exception as e:
             logger.error(f"Error getting ACH batch {batch_id}: {str(e)}")
             return None
@@ -381,7 +404,7 @@ class Loan:
                 SELECT * FROM payments WHERE loan_id = %s ORDER BY due_date ASC
                 """
                 payments = self.db.fetch_all(query, (loan_ids))
-            return payments
+            return self._convert_decimal_to_float(payments)
         except Exception as e:
             logger.error(f"Error getting payments by loan IDs: {str(e)}")
             return []
