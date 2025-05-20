@@ -69,8 +69,6 @@ const Register = () => {
         email: values.email,
         password: values.password,
         password_confirmation: values.password_confirmation,
-        business_name: values.business_name,
-        phone: values.phone,
       };
       
       await register(userData);
@@ -154,21 +152,6 @@ const Register = () => {
                     type="email"
                     autoComplete="email"
                     placeholder="tucorreo@ejemplo.com"
-                  />
-
-                  <FormInput
-                    label="Nombre del negocio"
-                    name="business_name"
-                    type="text"
-                    placeholder="Nombre de tu empresa"
-                  />
-
-                  <FormInput
-                    label="Teléfono (opcional)"
-                    name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    placeholder="(123) 456-7890"
                   />
 
                   <FormInput
